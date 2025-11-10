@@ -3,10 +3,9 @@ import fetch from "node-fetch";
 
 const app = express();
 app.use(express.json());
-
 const PORT = process.env.PORT || 3000;
 
-// Extract email from Intercom context
+// Extract email safely
 function extractEmail(body) {
   return (
     body?.context?.customer?.email ||
@@ -19,7 +18,7 @@ function extractEmail(body) {
   );
 }
 
-// Helper to format date nicely
+// Format date nicely
 function formatDate(dateString) {
   if (!dateString) return "-";
   return new Date(dateString).toLocaleDateString("en-GB", {
@@ -29,7 +28,6 @@ function formatDate(dateString) {
   });
 }
 
-// Initialize route
 app.post("/initialize", async (req, res) => {
   const email = extractEmail(req.body);
   console.log("📩 Email detected:", email);
@@ -46,20 +44,26 @@ app.post("/initialize", async (req, res) => {
     if (!response.ok) {
       console.error("❌ API status:", response.status);
       return res.json({
-        canvas: { content: { components: [{ type: "text", text: "API error" }] } },
-      });
-    }
-
-    const user = await response.json();
-    if (!user || !user.accounts?.length) {
-      return res.json({
         canvas: {
-          content: { components: [{ type: "text", text: `No data found for ${email}.` }] },
+          content: {
+            components: [{ type: "text", text: "API error or no data." }],
+          },
         },
       });
     }
 
-    // build account list
+    const user = await response.json();
+
+    if (!user || !user.accounts?.length) {
+      return res.json({
+        canvas: {
+          content: {
+            components: [{ type: "text", text: `No data found for ${email}.` }],
+          },
+        },
+      });
+    }
+
     const accounts = user.accounts.slice(-10).reverse();
 
     const accountItems = accounts.map((acc) => {
@@ -69,7 +73,7 @@ app.post("/initialize", async (req, res) => {
       if (breach) {
         breachText = `⚠️ ${breach.violationType
           .replace(/_/g, " ")
-          .toUpperCase()} breach – equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
+          .toUpperCase()} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
       }
 
       let emoji =
@@ -82,12 +86,10 @@ app.post("/initialize", async (req, res) => {
           : "⚪";
 
       return {
-        type: "item",
-        id: `${acc.id}`,
-        title: `${emoji} ${acc.product.productKey} ${acc.product.planSizeUsd.toLocaleString()} USD – ${acc.platform}`,
-        subtitle: `${acc.state} | Created ${formatDate(acc.createdAt)}${
-          breachText ? " | " + breachText : ""
-        }`,
+        type: "text",
+        text: `${emoji} **${acc.product.productKey}** (${acc.product.planSizeUsd.toLocaleString()} USD) — ${acc.platform}\n${acc.state} | ${formatDate(
+          acc.createdAt
+        )}${breachText ? "\n" + breachText : ""}`,
       };
     });
 
@@ -104,19 +106,13 @@ app.post("/initialize", async (req, res) => {
             },
             { type: "divider" },
             { type: "text", text: "**Latest Accounts:**" },
-            { type: "list", items: accountItems },
+            ...accountItems,
             { type: "divider" },
             {
-              type: "link_list",
-              items: [
-                {
-                  type: "link",
-                  text: "🔍 View full profile in Upcomers Dashboard",
-                  url: `https://supportproxy.upcomers.com/index.php?email=${encodeURIComponent(
-                    user.email
-                  )}`,
-                },
-              ],
+              type: "text",
+              text: `[🔍 View full profile in Upcomers Dashboard](https://supportproxy.upcomers.com/index.php?email=${encodeURIComponent(
+                user.email
+              )})`,
             },
           ],
         },
@@ -137,13 +133,16 @@ app.post("/initialize", async (req, res) => {
   }
 });
 
-// dummy submit
 app.post("/submit", (req, res) => {
   res.json({
     canvas: {
-      content: { components: [{ type: "text", text: "✅ Action handled" }] },
+      content: {
+        components: [{ type: "text", text: "✅ Action handled" }],
+      },
     },
   });
 });
 
-app.listen(PORT, () => console.log(`✅ Intercom Canvas App running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Intercom Canvas App running on port ${PORT}`)
+);

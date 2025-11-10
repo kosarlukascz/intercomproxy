@@ -28,6 +28,27 @@ function formatDate(dateString) {
   });
 }
 
+// Translate state to readable text
+function translateState(state) {
+  const translations = {
+    "LIVE": "LIVE",
+    "END_FAIL": "FAILED",
+    "ONGOING": "ONGOING",
+    "END_SUCCESS": "PASSED"
+  };
+  return translations[state] || state;
+}
+
+// Translate violation type
+function translateViolation(violationType) {
+  const translations = {
+    "daily_drawdown": "daily drawdown",
+    "trailing_drawdown": "trailing drawdown",
+    "max_drawdown": "max drawdown"
+  };
+  return translations[violationType] || violationType.replace(/_/g, " ");
+}
+
 app.post("/initialize", async (req, res) => {
   const email = extractEmail(req.body);
   console.log("📩 Email detected:", email);
@@ -89,17 +110,22 @@ app.post("/initialize", async (req, res) => {
       let breachText = "";
 
       if (breach) {
-        const violationType = breach.violationType.replace(/_/g, " ").toLowerCase();
-        breachText = `\n⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
+        const violationType = translateViolation(breach.violationType);
+        const equity = parseFloat(breach.equityAtFailure);
+        const limit = parseFloat(breach.limitValue);
+        const diff = Math.abs(equity - limit).toFixed(2);
+        
+        breachText = `\n⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}\n≈ diff (${diff})`;
       }
 
       let emoji = acc.state === "LIVE" ? "🟢" : "🔴";
-      const accountUrl = `https://admin.upcomers.com/accounts/${acc.accountId}`;
+      const accountUrl = `https://admin.upcomers.com/accounts/${acc.id}`;
       const planSize = acc.product.planSizeUsd.toLocaleString();
+      const state = translateState(acc.state);
 
       return {
         type: "text",
-        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl})\n${acc.platform} | ${acc.state} | ${formatDate(acc.createdAt)}${breachText}`,
+        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl}) (${acc.platform})\n${state} - ${formatDate(acc.createdAt)}${breachText}`,
       };
     };
 
@@ -109,7 +135,7 @@ app.post("/initialize", async (req, res) => {
     const components = [
       {
         type: "text",
-        text: `**${user.email}**`
+        text: `[${user.email}](${userUrl})`
       },
       {
         type: "text",
@@ -132,7 +158,7 @@ app.post("/initialize", async (req, res) => {
       components.push(
         {
           type: "text",
-          text: `🟢 **Live Accounts (${liveAccounts.length})**`
+          text: `🟢 Live Accounts (${liveAccounts.length})`
         }
       );
       liveAccounts.forEach(acc => {
@@ -146,7 +172,7 @@ app.post("/initialize", async (req, res) => {
       components.push(
         {
           type: "text",
-          text: `📊 **Recent Ended Accounts (${endedAccounts.length})**`
+          text: `📊 Recent Ended Accounts (${endedAccounts.length})`
         }
       );
       endedAccounts.forEach(acc => {

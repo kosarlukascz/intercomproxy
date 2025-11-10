@@ -49,7 +49,8 @@ app.post("/initialize", async (req, res) => {
             components: [
               { 
                 type: "text", 
-                text: "⚠️ **API Error**\n\nUnable to fetch data. Please try again." 
+                text: "⚠️ API Error - Unable to fetch data. Please try again.",
+                style: "error"
               }
             ],
           },
@@ -66,7 +67,8 @@ app.post("/initialize", async (req, res) => {
             components: [
               { 
                 type: "text", 
-                text: `**No Data Found**\n\nNo trading accounts found for \`${email}\`` 
+                text: `No trading accounts found for ${email}`,
+                style: "muted"
               }
             ],
           },
@@ -74,58 +76,110 @@ app.post("/initialize", async (req, res) => {
       });
     }
 
-    const accounts = user.accounts.slice(-10).reverse();
+    // Separate live accounts and ended accounts
+    const liveAccounts = user.accounts
+      .filter(acc => acc.state === "LIVE")
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    const endedAccounts = user.accounts
+      .filter(acc => acc.state !== "LIVE")
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5);
 
-    const accountItems = accounts.map((acc) => {
+    // Combine: all live accounts first, then 5 latest ended accounts
+    const displayAccounts = [...liveAccounts, ...endedAccounts];
+
+    const formatAccount = (acc) => {
       const breach = acc.currentPhase?.accountClosure?.metadata;
       let breachText = "";
 
       if (breach) {
         const violationType = breach.violationType.replace(/_/g, " ");
-        breachText = `\n⚠️ **${violationType.toUpperCase()}** breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
+        breachText = ` ⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
       }
 
-      let emoji =
-        acc.state === "LIVE"
-          ? "🟢"
-          : acc.state === "ONGOING"
-          ? "🟡"
-          : acc.state === "END_FAIL"
-          ? "🔴"
-          : "⚪";
-
+      let emoji = acc.state === "LIVE" ? "🟢" : "🔴";
       const accountUrl = `https://admin.upcomers.com/accounts/${acc.accountId}`;
       const planSize = acc.product.planSizeUsd.toLocaleString();
 
       return {
         type: "text",
-        text: `${emoji} [**${acc.product.productKey}** (${planSize} USD)](${accountUrl})\n${acc.platform} • ${acc.state} • ${formatDate(acc.createdAt)}${breachText}`,
+        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl}) — ${acc.platform} | ${acc.state} | ${formatDate(acc.createdAt)}${breachText}`,
       };
-    });
+    };
 
     const userUrl = `https://admin.upcomers.com/users/${user.userId}`;
     const supportUrl = `https://supportproxy.upcomers.com/index.php?email=${encodeURIComponent(user.email)}`;
 
+    const components = [
+      {
+        type: "text",
+        text: `**${user.email}**`,
+        style: "header"
+      },
+      {
+        type: "text",
+        text: `🆔 ${user.userId} | 📅 ${formatDate(user.createdAt)} | 💰 $${user.spentUsd?.toLocaleString() || "0"}`,
+        style: "muted"
+      },
+      {
+        type: "button",
+        label: "👤 View User Dashboard",
+        action: {
+          type: "url",
+          url: userUrl
+        }
+      },
+      { type: "spacer", size: "m" }
+    ];
+
+    // Add live accounts section if any
+    if (liveAccounts.length > 0) {
+      components.push(
+        {
+          type: "text",
+          text: `**🟢 Live Accounts (${liveAccounts.length})**`,
+          style: "header"
+        }
+      );
+      liveAccounts.forEach(acc => {
+        components.push(formatAccount(acc));
+      });
+      components.push({ type: "spacer", size: "s" });
+    }
+
+    // Add ended accounts section if any
+    if (endedAccounts.length > 0) {
+      components.push(
+        {
+          type: "text",
+          text: `**📊 Recent Ended Accounts (${endedAccounts.length})**`,
+          style: "header"
+        }
+      );
+      endedAccounts.forEach(acc => {
+        components.push(formatAccount(acc));
+      });
+    }
+
+    // Add footer with link
+    components.push(
+      { type: "spacer", size: "m" },
+      {
+        type: "button",
+        label: "🔍 View Full Profile",
+        action: {
+          type: "url",
+          url: supportUrl
+        },
+        style: "secondary"
+      }
+    );
+
     res.json({
       canvas: {
         content: {
-          components: [
-            {
-              type: "text",
-              text: `### [${user.email}](${userUrl})\n\n**User ID:** \`${user.userId}\`\n**Created:** ${formatDate(user.createdAt)}\n**Total Spent:** $${user.spentUsd?.toLocaleString() || "0"}`,
-            },
-            { type: "divider" },
-            { 
-              type: "text", 
-              text: `### 📊 Latest Accounts (${accounts.length})` 
-            },
-            ...accountItems,
-            { type: "divider" },
-            {
-              type: "text",
-              text: `[🔍 View Full Profile](${supportUrl}) • [👤 User Dashboard](${userUrl})`,
-            },
-          ],
+          components: components
         },
       },
     });
@@ -137,11 +191,13 @@ app.post("/initialize", async (req, res) => {
           components: [
             { 
               type: "text", 
-              text: "**⚠️ Internal Server Error**\n\nSomething went wrong. Please contact support." 
+              text: "Internal server error",
+              style: "error"
             },
             { 
               type: "text", 
-              text: `\`\`\`\n${String(err)}\n\`\`\`` 
+              text: String(err),
+              style: "muted"
             },
           ],
         },
@@ -157,7 +213,8 @@ app.post("/submit", (req, res) => {
         components: [
           { 
             type: "text", 
-            text: "✅ **Action Completed**\n\nYour request has been processed." 
+            text: "Action completed successfully",
+            style: "success"
           }
         ],
       },

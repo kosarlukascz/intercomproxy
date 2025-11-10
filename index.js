@@ -89,7 +89,7 @@ app.post("/initialize", async (req, res) => {
       let breachText = "";
 
       if (breach) {
-        const violationType = breach.violationType.replace(/_/g, " ");
+        const violationType = breach.violationType.replace(/_/g, " ").toLowerCase();
         breachText = `\n⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
       }
 
@@ -132,7 +132,7 @@ app.post("/initialize", async (req, res) => {
       components.push(
         {
           type: "text",
-          text: `**🟢 Live Accounts (${liveAccounts.length})**`
+          text: `🟢 **Live Accounts (${liveAccounts.length})**`
         }
       );
       liveAccounts.forEach(acc => {
@@ -146,7 +146,7 @@ app.post("/initialize", async (req, res) => {
       components.push(
         {
           type: "text",
-          text: `**📊 Recent Ended Accounts (${endedAccounts.length})**`
+          text: `📊 **Recent Ended Accounts (${endedAccounts.length})**`
         }
       );
       endedAccounts.forEach(acc => {

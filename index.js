@@ -49,8 +49,7 @@ app.post("/initialize", async (req, res) => {
             components: [
               { 
                 type: "text", 
-                text: "⚠️ API Error - Unable to fetch data. Please try again.",
-                style: "error"
+                text: "⚠️ API Error - Unable to fetch data. Please try again."
               }
             ],
           },
@@ -67,8 +66,7 @@ app.post("/initialize", async (req, res) => {
             components: [
               { 
                 type: "text", 
-                text: `No trading accounts found for ${email}`,
-                style: "muted"
+                text: `No trading accounts found for ${email}`
               }
             ],
           },
@@ -86,16 +84,13 @@ app.post("/initialize", async (req, res) => {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 5);
 
-    // Combine: all live accounts first, then 5 latest ended accounts
-    const displayAccounts = [...liveAccounts, ...endedAccounts];
-
     const formatAccount = (acc) => {
       const breach = acc.currentPhase?.accountClosure?.metadata;
       let breachText = "";
 
       if (breach) {
         const violationType = breach.violationType.replace(/_/g, " ");
-        breachText = ` ⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
+        breachText = `\n⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
       }
 
       let emoji = acc.state === "LIVE" ? "🟢" : "🔴";
@@ -104,7 +99,7 @@ app.post("/initialize", async (req, res) => {
 
       return {
         type: "text",
-        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl}) — ${acc.platform} | ${acc.state} | ${formatDate(acc.createdAt)}${breachText}`,
+        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl})\n${acc.platform} | ${acc.state} | ${formatDate(acc.createdAt)}${breachText}`,
       };
     };
 
@@ -114,23 +109,22 @@ app.post("/initialize", async (req, res) => {
     const components = [
       {
         type: "text",
-        text: `**${user.email}**`,
-        style: "header"
+        text: `**${user.email}**`
       },
       {
         type: "text",
-        text: `🆔 ${user.userId} | 📅 ${formatDate(user.createdAt)} | 💰 $${user.spentUsd?.toLocaleString() || "0"}`,
-        style: "muted"
+        text: `🆔 ${user.userId}\n📅 Created: ${formatDate(user.createdAt)}\n💰 Spent: $${user.spentUsd?.toLocaleString() || "0"}`
       },
       {
         type: "button",
+        id: "view_user_dashboard",
         label: "👤 View User Dashboard",
         action: {
           type: "url",
           url: userUrl
         }
       },
-      { type: "spacer", size: "m" }
+      { type: "divider" }
     ];
 
     // Add live accounts section if any
@@ -138,14 +132,13 @@ app.post("/initialize", async (req, res) => {
       components.push(
         {
           type: "text",
-          text: `**🟢 Live Accounts (${liveAccounts.length})**`,
-          style: "header"
+          text: `**🟢 Live Accounts (${liveAccounts.length})**`
         }
       );
       liveAccounts.forEach(acc => {
         components.push(formatAccount(acc));
       });
-      components.push({ type: "spacer", size: "s" });
+      components.push({ type: "divider" });
     }
 
     // Add ended accounts section if any
@@ -153,26 +146,25 @@ app.post("/initialize", async (req, res) => {
       components.push(
         {
           type: "text",
-          text: `**📊 Recent Ended Accounts (${endedAccounts.length})**`,
-          style: "header"
+          text: `**📊 Recent Ended Accounts (${endedAccounts.length})**`
         }
       );
       endedAccounts.forEach(acc => {
         components.push(formatAccount(acc));
       });
+      components.push({ type: "divider" });
     }
 
     // Add footer with link
     components.push(
-      { type: "spacer", size: "m" },
       {
         type: "button",
+        id: "view_full_profile",
         label: "🔍 View Full Profile",
         action: {
           type: "url",
           url: supportUrl
-        },
-        style: "secondary"
+        }
       }
     );
 
@@ -191,13 +183,11 @@ app.post("/initialize", async (req, res) => {
           components: [
             { 
               type: "text", 
-              text: "Internal server error",
-              style: "error"
+              text: "⚠️ Internal server error"
             },
             { 
               type: "text", 
-              text: String(err),
-              style: "muted"
+              text: String(err)
             },
           ],
         },
@@ -213,8 +203,7 @@ app.post("/submit", (req, res) => {
         components: [
           { 
             type: "text", 
-            text: "Action completed successfully",
-            style: "success"
+            text: "✅ Action completed successfully"
           }
         ],
       },

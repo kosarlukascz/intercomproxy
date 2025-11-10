@@ -107,26 +107,44 @@ app.post("/initialize", async (req, res) => {
 
     const formatAccount = (acc) => {
       const breach = acc.currentPhase?.accountClosure?.metadata;
-      let breachText = "";
-
-      if (breach) {
-        const violationType = translateViolation(breach.violationType);
-        const equity = parseFloat(breach.equityAtFailure);
-        const limit = parseFloat(breach.limitValue);
-        const diff = Math.abs(equity - limit).toFixed(2);
-        
-        breachText = `\n⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}\n≈ diff (${diff})`;
-      }
+      const accountComponents = [];
 
       let emoji = acc.state === "LIVE" ? "🟢" : "🔴";
       const accountUrl = `https://admin.upcomers.com/accounts/${acc.id}`;
       const planSize = acc.product.planSizeUsd.toLocaleString();
       const state = translateState(acc.state);
 
-      return {
+      // First line: emoji + product name + platform
+      accountComponents.push({
         type: "text",
-        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl}) (${acc.platform})\n${state} - ${formatDate(acc.createdAt)}${breachText}`,
-      };
+        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl}) (${acc.platform})`
+      });
+
+      // Second line: state + date
+      accountComponents.push({
+        type: "text",
+        text: `${state} - ${formatDate(acc.createdAt)}`
+      });
+
+      // Breach info if exists
+      if (breach) {
+        const violationType = translateViolation(breach.violationType);
+        const equity = parseFloat(breach.equityAtFailure);
+        const limit = parseFloat(breach.limitValue);
+        const diff = Math.abs(equity - limit).toFixed(2);
+        
+        accountComponents.push({
+          type: "text",
+          text: `⚠️ ${violationType} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`
+        });
+        
+        accountComponents.push({
+          type: "text",
+          text: `≈ diff (${diff})`
+        });
+      }
+
+      return accountComponents;
     };
 
     const userUrl = `https://admin.upcomers.com/users/${user.userId}`;
@@ -139,7 +157,15 @@ app.post("/initialize", async (req, res) => {
       },
       {
         type: "text",
-        text: `🆔 ${user.userId}\n📅 Created: ${formatDate(user.createdAt)}\n💰 Spent: $${user.spentUsd?.toLocaleString() || "0"}`
+        text: `🆔 ${user.userId}`
+      },
+      {
+        type: "text",
+        text: `📅 Created: ${formatDate(user.createdAt)}`
+      },
+      {
+        type: "text",
+        text: `💰 Spent: $${user.spentUsd?.toLocaleString() || "0"}`
       },
       {
         type: "button",
@@ -162,7 +188,9 @@ app.post("/initialize", async (req, res) => {
         }
       );
       liveAccounts.forEach(acc => {
-        components.push(formatAccount(acc));
+        const accountComponents = formatAccount(acc);
+        components.push(...accountComponents);
+        components.push({ type: "spacer", size: "s" });
       });
       components.push({ type: "divider" });
     }
@@ -176,7 +204,9 @@ app.post("/initialize", async (req, res) => {
         }
       );
       endedAccounts.forEach(acc => {
-        components.push(formatAccount(acc));
+        const accountComponents = formatAccount(acc);
+        components.push(...accountComponents);
+        components.push({ type: "spacer", size: "s" });
       });
       components.push({ type: "divider" });
     }

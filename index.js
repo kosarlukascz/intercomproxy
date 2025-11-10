@@ -46,7 +46,12 @@ app.post("/initialize", async (req, res) => {
       return res.json({
         canvas: {
           content: {
-            components: [{ type: "text", text: "API error or no data." }],
+            components: [
+              { 
+                type: "text", 
+                text: "⚠️ **API Error**\n\nUnable to fetch data. Please try again." 
+              }
+            ],
           },
         },
       });
@@ -58,7 +63,12 @@ app.post("/initialize", async (req, res) => {
       return res.json({
         canvas: {
           content: {
-            components: [{ type: "text", text: `No data found for ${email}.` }],
+            components: [
+              { 
+                type: "text", 
+                text: `**No Data Found**\n\nNo trading accounts found for \`${email}\`` 
+              }
+            ],
           },
         },
       });
@@ -71,9 +81,8 @@ app.post("/initialize", async (req, res) => {
       let breachText = "";
 
       if (breach) {
-        breachText = `⚠️ ${breach.violationType
-          .replace(/_/g, " ")
-          .toUpperCase()} breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
+        const violationType = breach.violationType.replace(/_/g, " ");
+        breachText = `\n⚠️ **${violationType.toUpperCase()}** breach — equity ${breach.equityAtFailure} / limit ${breach.limitValue}`;
       }
 
       let emoji =
@@ -85,13 +94,17 @@ app.post("/initialize", async (req, res) => {
           ? "🔴"
           : "⚪";
 
+      const accountUrl = `https://admin.upcomers.com/accounts/${acc.accountId}`;
+      const planSize = acc.product.planSizeUsd.toLocaleString();
+
       return {
         type: "text",
-        text: `${emoji} **${acc.product.productKey}** (${acc.product.planSizeUsd.toLocaleString()} USD) — ${acc.platform}\n${acc.state} | ${formatDate(
-          acc.createdAt
-        )}${breachText ? "\n" + breachText : ""}`,
+        text: `${emoji} [**${acc.product.productKey}** (${planSize} USD)](${accountUrl})\n${acc.platform} • ${acc.state} • ${formatDate(acc.createdAt)}${breachText}`,
       };
     });
+
+    const userUrl = `https://admin.upcomers.com/users/${user.userId}`;
+    const supportUrl = `https://supportproxy.upcomers.com/index.php?email=${encodeURIComponent(user.email)}`;
 
     res.json({
       canvas: {
@@ -99,20 +112,18 @@ app.post("/initialize", async (req, res) => {
           components: [
             {
               type: "text",
-              text: `**${user.email}**  
-🆔 ${user.userId}  
-🗓️ Created: ${formatDate(user.createdAt)}  
-💸 Spent: $${user.spentUsd?.toLocaleString()}`,
+              text: `### [${user.email}](${userUrl})\n\n**User ID:** \`${user.userId}\`\n**Created:** ${formatDate(user.createdAt)}\n**Total Spent:** $${user.spentUsd?.toLocaleString() || "0"}`,
             },
             { type: "divider" },
-            { type: "text", text: "**Latest Accounts:**" },
+            { 
+              type: "text", 
+              text: `### 📊 Latest Accounts (${accounts.length})` 
+            },
             ...accountItems,
             { type: "divider" },
             {
               type: "text",
-              text: `[🔍 View full profile in Upcomers Dashboard](https://supportproxy.upcomers.com/index.php?email=${encodeURIComponent(
-                user.email
-              )})`,
+              text: `[🔍 View Full Profile](${supportUrl}) • [👤 User Dashboard](${userUrl})`,
             },
           ],
         },
@@ -124,8 +135,14 @@ app.post("/initialize", async (req, res) => {
       canvas: {
         content: {
           components: [
-            { type: "text", text: "⚠️ Internal server error" },
-            { type: "text", text: String(err) },
+            { 
+              type: "text", 
+              text: "**⚠️ Internal Server Error**\n\nSomething went wrong. Please contact support." 
+            },
+            { 
+              type: "text", 
+              text: `\`\`\`\n${String(err)}\n\`\`\`` 
+            },
           ],
         },
       },
@@ -137,7 +154,12 @@ app.post("/submit", (req, res) => {
   res.json({
     canvas: {
       content: {
-        components: [{ type: "text", text: "✅ Action handled" }],
+        components: [
+          { 
+            type: "text", 
+            text: "✅ **Action Completed**\n\nYour request has been processed." 
+          }
+        ],
       },
     },
   });

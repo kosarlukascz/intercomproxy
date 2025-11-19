@@ -117,7 +117,7 @@ app.post("/initialize", async (req, res) => {
       // First line: emoji + product name + platform
       accountComponents.push({
         type: "text",
-        text: `${emoji} [${acc.product.productKey} ($${planSize})](${accountUrl}) (${acc.platform})`
+        text: `${emoji} ${acc.id} [${acc.product.productKey} ($${planSize})](${accountUrl}) (${acc.platform})`
       });
 
       // Second line: state + date
